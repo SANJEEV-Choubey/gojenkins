@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -610,4 +611,27 @@ func CreateJenkins(client *http.Client, base string, auth ...interface{}) *Jenki
 		j.Requester.BasicAuth = &BasicAuth{Username: auth[0].(string), Password: auth[1].(string)}
 	}
 	return j
+}
+
+func (jenkins *Jenkins) GetMyBuild(ctx context.Context, jobName string, number int64) (*Build, error) {
+	job, err := jenkins.GetJob(ctx, jobName)
+	if err != nil {
+		return nil, err
+	}
+
+	// https://github.com/bndr/gojenkins/issues/176
+	// workaround begin
+	jobURL, err := url.Parse(job.Raw.URL)
+	if err != nil {
+		return nil, err
+	}
+	job.Raw.URL = jobURL.RequestURI()
+	// workaround end
+
+	build, err := job.GetBuild(ctx, number)
+
+	if err != nil {
+		return nil, err
+	}
+	return build, nil
 }
